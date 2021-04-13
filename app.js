@@ -1,4 +1,4 @@
-require("dotenv").config();
+require("dotenv").config({ path: __dirname + "/.env" });
 const express = require("express");
 const bodyParser = require("body-parser");
 const bcrypt = require("bcryptjs");
@@ -168,7 +168,7 @@ app.use(
 
 mongoose
   .connect(
-    `mongodb+srv://admin:Icerose137@cluster0.hy8gt.mongodb.net/event-react?retryWrites=true&w=majority`
+    `mongodb+srv://${process.env.MONGO_USER}:${process.env.MONGO_PW}@cluster0.hy8gt.mongodb.net/event-react?retryWrites=true&w=majority`
   )
   .then(() => {
     app.listen(8080, () => {
