@@ -184,7 +184,7 @@ app.get("/", (req, res) => {
 
 mongoose
   .connect(
-    `mongodb+srv://${process.env.MONGO_USER}:${process.env.MONGO_PW}@cluster0.hy8gt.mongodb.net/event-react?retryWrites=true&w=majority`
+    `mongodb+srv://admin:Icerose137@cluster0.hy8gt.mongodb.net/event-react?retryWrites=true&w=majority`
   )
   .then(() => {
     app.listen(PORT, () => {
