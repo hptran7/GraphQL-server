@@ -1,7 +1,7 @@
 require("dotenv").config({ path: __dirname + "/.env" });
 const express = require("express");
+const cors = require("cors");
 const bodyParser = require("body-parser");
-const bcrypt = require("bcryptjs");
 const expressGraphQL = require("express-graphql").graphqlHTTP;
 const {
   GraphQLSchema,
@@ -16,30 +16,39 @@ const {
 const mongoose = require("mongoose");
 
 const app = express();
+app.use(cors());
+
 app.use(bodyParser.json());
+const PORT = process.env.PORT || 8080;
 
-const Event = require("./models/event");
-const User = require("./models/users");
+const Pokemon = require("./models/pokemons");
 
-const EventType = new GraphQLObjectType({
-  name: "Event",
-  description: "this represent event",
+const BaseType = new GraphQLObjectType({
+  name: "base",
+  description: "this represent base stats",
   fields: () => ({
-    _id: { type: GraphQLNonNull(GraphQLString) },
-    title: { type: GraphQLNonNull(GraphQLString) },
-    description: { type: GraphQLNonNull(GraphQLString) },
-    price: { type: GraphQLNonNull(GraphQLFloat) },
-    date: { type: GraphQLNonNull(GraphQLString) },
+    HP: { type: GraphQLNonNull(GraphQLInt) },
+    Attack: { type: GraphQLNonNull(GraphQLInt) },
+    Defense: { type: GraphQLNonNull(GraphQLInt) },
+    SpAttack: { type: GraphQLNonNull(GraphQLInt) },
+    SpDefense: { type: GraphQLNonNull(GraphQLInt) },
+    Speed: { type: GraphQLNonNull(GraphQLInt) },
   }),
 });
 
-const UserType = new GraphQLObjectType({
-  name: "User",
-  description: "This represent user",
+const PokeType = new GraphQLObjectType({
+  name: "Pokemon",
+  description: "This represents Pokemon",
   fields: () => ({
     _id: { type: GraphQLNonNull(GraphQLString) },
-    username: { type: GraphQLNonNull(GraphQLString) },
-    password: { type: GraphQLString },
+    name: { type: GraphQLNonNull(GraphQLString) },
+    img: { type: GraphQLNonNull(GraphQLString) },
+    type: { type: GraphQLNonNull(GraphQLString) },
+    height: { type: GraphQLNonNull(GraphQLString) },
+    weight: { type: GraphQLNonNull(GraphQLString) },
+    weaknesses: { type: GraphQLNonNull(GraphQLList(GraphQLString)) },
+    base: { type: GraphQLNonNull(BaseType) },
+    rank: { type: GraphQLNonNull(GraphQLString) },
   }),
 });
 
@@ -47,14 +56,14 @@ const RootQueryType = new GraphQLObjectType({
   name: "Root",
   description: "root query",
   fields: () => ({
-    Events: {
-      type: GraphQLList(EventType),
-      description: "All events",
+    Pokemons: {
+      type: GraphQLList(PokeType),
+      description: "All pokemons",
       resolve: () => {
-        return Event.find()
-          .then((events) => {
-            return events.map((event) => {
-              return { ...event._doc };
+        return Pokemon.find()
+          .then((pokemons) => {
+            return pokemons.map((pokemon) => {
+              return { ...pokemon._doc };
             });
           })
           .catch((err) => {
@@ -62,10 +71,40 @@ const RootQueryType = new GraphQLObjectType({
           });
       },
     },
-    User: {
-      type: GraphQLList(UserType),
-      description: "ALl User",
-      resolve: () => {},
+    PokemonSearch: {
+      type: GraphQLList(PokeType),
+      description: "Search partial name",
+      args: {
+        name: { type: GraphQLNonNull(GraphQLString) },
+      },
+      resolve: (parent, args) => {
+        const searchKey = new RegExp(args.name, "i");
+        return Pokemon.find({ name: searchKey })
+          .then((pokemons) => {
+            return pokemons.map((pokemon) => {
+              return { ...pokemon._doc };
+            });
+          })
+          .catch((err) => {
+            throw err;
+          });
+      },
+    },
+    Pokemon: {
+      type: PokeType,
+      description: "Return one pokemons",
+      args: {
+        name: { type: GraphQLNonNull(GraphQLString) },
+      },
+      resolve: (parent, args) => {
+        return Pokemon.findOne({ name: args.name })
+          .then((result) => {
+            return { ...result._doc };
+          })
+          .catch((err) => {
+            throw err;
+          });
+      },
     },
   }),
 });
@@ -74,74 +113,48 @@ const RootMutationType = new GraphQLObjectType({
   name: "mutation",
   description: "root mutation",
   fields: () => ({
-    addEvent: {
-      type: EventType,
+    addPokemon: {
+      type: PokeType,
       description: "add new event",
       args: {
-        title: { type: GraphQLNonNull(GraphQLString) },
-        description: { type: GraphQLNonNull(GraphQLString) },
-        prices: { type: GraphQLNonNull(GraphQLFloat) },
-        date: { type: GraphQLNonNull(GraphQLString) },
+        name: { type: GraphQLNonNull(GraphQLString) },
+        img: { type: GraphQLNonNull(GraphQLString) },
+        type: { type: GraphQLNonNull(GraphQLString) },
+        height: { type: GraphQLNonNull(GraphQLString) },
+        weight: { type: GraphQLNonNull(GraphQLString) },
+        weaknesses: { type: GraphQLNonNull(GraphQLList(GraphQLString)) },
+        HP: { type: GraphQLNonNull(GraphQLFloat) },
+        Attack: { type: GraphQLNonNull(GraphQLFloat) },
+        Defense: { type: GraphQLNonNull(GraphQLFloat) },
+        SpAttack: { type: GraphQLNonNull(GraphQLFloat) },
+        SpDefense: { type: GraphQLNonNull(GraphQLFloat) },
+        Speed: { type: GraphQLNonNull(GraphQLFloat) },
+        rank: { type: GraphQLNonNull(GraphQLString) },
       },
       resolve: (parent, args) => {
-        const event = new Event({
-          title: args.title,
-          description: args.description,
-          prices: args.prices,
-          date: new Date(args.date),
-          creator: "60750aed4e504b06ef5ff7f1",
+        const pokemon = new Pokemon({
+          name: args.name,
+          img: args.img,
+          type: args.type,
+          height: args.height,
+          weight: args.weight,
+          weaknesses: args.weaknesses,
+          rank: args.rank,
+          base: {
+            HP: args.HP,
+            Attack: args.Attack,
+            Defense: args.Defense,
+            SpAttack: args.SpAttack,
+            SpDefense: args.SpDefense,
+            Speed: args.Speed,
+          },
         });
-        let createdEvent;
-        return event
+        let createdpokemon;
+        return pokemon
           .save()
           .then((result) => {
-            createdEvent = { ...result._doc, _id: event.id };
-            return User.findById("60750aed4e504b06ef5ff7f1");
-          })
-          .then((user) => {
-            if (!user) {
-              throw new Error("User is not exists");
-            }
-            user.createdEvent.push(event);
-            return user.save();
-          })
-          .then((result) => {
-            return createdEvent;
-          })
-          .catch((err) => {
-            console.log(err);
-            throw err;
-          });
-      },
-    },
-    addUser: {
-      type: UserType,
-      description: "Add User",
-      args: {
-        username: { type: GraphQLNonNull(GraphQLString) },
-        password: { type: GraphQLNonNull(GraphQLString) },
-      },
-      resolve: (parent, args) => {
-        return User.findOne({ username: args.username })
-          .then((user) => {
-            if (user) {
-              throw new Error("User already exists");
-            }
-            return bcrypt.hash(args.password, 12);
-          })
-          .then((hashedPassword) => {
-            const user = new User({
-              username: args.username,
-              password: hashedPassword,
-            });
-            return user
-              .save()
-              .then((result) => {
-                return { ...result._doc, _id: user.id, password: null };
-              })
-              .catch((err) => {
-                throw err;
-              });
+            createdpokemon = { ...result._doc, _id: pokemon.id };
+            return createdpokemon;
           })
           .catch((err) => {
             throw err;
@@ -171,7 +184,7 @@ mongoose
     `mongodb+srv://${process.env.MONGO_USER}:${process.env.MONGO_PW}@cluster0.hy8gt.mongodb.net/event-react?retryWrites=true&w=majority`
   )
   .then(() => {
-    app.listen(8080, () => {
+    app.listen(PORT, () => {
       console.log("server is running");
     });
   })
