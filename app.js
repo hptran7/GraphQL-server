@@ -178,6 +178,9 @@ app.use(
     graphiql: true,
   })
 );
+app.get("/", (req, res) => {
+  res.json({ Hello: "hello" });
+});
 
 mongoose
   .connect(
